@@ -90,7 +90,7 @@
 
 					} else {
 
-						resolve( buffer );
+						resolve( buffer.subarray( 0, writer.end() ) );
 
 					}
 
