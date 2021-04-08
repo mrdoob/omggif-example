@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Animated GIF generator</title>
+		<meta charset="utf-8">
+		<style>
+			body {
+				background-color: #ffffff;
+				font-family: monospace;
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+
+		<a href="https://github.com/deanm/omggif">omggif</a> example<br/><br/>
+
+		<canvas id="canvas"></canvas><br/><br/>
+
+		<button id="button">Generate GIF</button>
+		<progress id="progress" value="0" max="1" style="display:none"></progress>
+
+		<script src="js/omggif.js"></script>
+		<script src="js/three.min.js"></script>
+		<script>
+
+			function generateGIF( element, renderFunction, frames = 100 ) {
+
+				const canvas = document.createElement( 'canvas' );
+				canvas.width = element.width;
+				canvas.height = element.height;
+
+				const context = canvas.getContext( '2d' );
+
+				const buffer = new Uint8Array( canvas.width * canvas.height * frames * 5 );
+				const pixels = new Uint8Array( canvas.width * canvas.height );
+				const writer = new GifWriter( buffer, canvas.width, canvas.height, { loop: 0 } );
+
+				let current = 0;
+
+				return new Promise( async function addFrame( resolve ) {
+
+					renderFunction( current / frames );
+
+					context.drawImage( element, 0, 0 );
+
+					const data = context.getImageData( 0, 0, canvas.width, canvas.height ).data;
+
+					const palette = [];
+
+					for ( var j = 0, k = 0, jl = data.length; j < jl; j += 4, k ++ ) {
+
+						const r = Math.floor( data[ j + 0 ] * 0.1 ) * 10;
+						const g = Math.floor( data[ j + 1 ] * 0.1 ) * 10;
+						const b = Math.floor( data[ j + 2 ] * 0.1 ) * 10;
+						const color = r << 16 | g << 8 | b << 0;
+
+						const index = palette.indexOf( color );
+
+						if ( index === -1 ) {
+
+							pixels[ k ] = palette.length;
+							palette.push( color );
+
+						} else {
+
+							pixels[ k ] = index;
+
+						}
+
+					}
+
+					// force palette to be power of 2
+
+					let powof2 = 1;
+					while ( powof2 < palette.length ) powof2 <<= 1;
+					palette.length = powof2;
+
+					const options = { palette: new Uint32Array( palette ), delay: 5 };
+					writer.addFrame( 0, 0, canvas.width, canvas.height, pixels, options );
+
+					current ++;
+
+					progress.value = current / frames;
+
+					if ( current < frames ) {
+
+						await setTimeout( addFrame, 0, resolve );
+
+					} else {
+
+						resolve( buffer );
+
+					}
+
+				} );
+
+			}
+
+			//
+
+			const canvas = document.getElementById( 'canvas' );
+			const button = document.getElementById( 'button' );
+			const progress = document.getElementById( 'progress' );
+
+			button.addEventListener( 'click', async function () {
+
+				button.style.display = 'none';
+				progress.style.display = '';
+
+				// Generate
+
+				const buffer = await generateGIF( canvas, render, 100 );
+
+				button.style.display = '';
+				progress.style.display = 'none';
+
+				// Download
+
+				const blob = new Blob( [ buffer ], { type: 'image/gif' } );
+
+				const link = document.createElement( 'a' );
+				link.href = URL.createObjectURL( blob );
+				link.download = 'animation.gif';
+				link.dispatchEvent( new MouseEvent( 'click' ) );
+
+			} );
+
+			// Animation
+
+			const camera = new THREE.PerspectiveCamera( 50, 1, 0.1, 10 );
+			camera.position.z = 2;
+
+			const scene = new THREE.Scene();
+
+			const geometry = new THREE.IcosahedronGeometry( 0.75, 1 );
+			const material = new THREE.MeshNormalMaterial( { flatShading: true } );
+			const mesh = new THREE.Mesh( geometry, material );
+			scene.add( mesh );
+
+			const renderer = new THREE.WebGLRenderer( { canvas: canvas } );
+			renderer.setClearColor( 0xffffff, 1 );
+			renderer.setSize( 500, 500 );
+
+			//
+
+			function render( progress ) {
+
+				// progress goes from 0 to 1
+
+				mesh.rotation.x = progress * Math.PI * 2;
+				mesh.rotation.y = - progress * Math.PI * 2;
+
+				renderer.render( scene, camera );
+
+			}
+
+			function animation( time ) {
+
+				if ( progress.style.display === 'none' ) {
+
+					// Only render when not generating
+
+					render( ( time / 5000 ) % 1 );
+
+				}
+
+				requestAnimationFrame( animation );
+
+			}
+
+			requestAnimationFrame( animation );
+
+		</script>
+	</body>
+</html>
