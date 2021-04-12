@@ -25,7 +25,9 @@
 		<script src="three.min.js"></script>
 		<script>
 
-			function generateGIF( element, renderFunction, frames = 100 ) {
+			function generateGIF( element, renderFunction, duration = 1, fps = 30 ) {
+
+				const frames = duration * fps;
 
 				const canvas = document.createElement( 'canvas' );
 				canvas.width = element.width;
@@ -71,13 +73,15 @@
 
 					}
 
-					// force palette to be power of 2
+					// Force palette to be power of 2
 
 					let powof2 = 1;
 					while ( powof2 < palette.length ) powof2 <<= 1;
 					palette.length = powof2;
 
-					const options = { palette: new Uint32Array( palette ), delay: 5 };
+
+					const delay = 100 / fps; // Delay in hundredths of a sec (100 = 1s)
+					const options = { palette: new Uint32Array( palette ), delay: delay };
 					writer.addFrame( 0, 0, canvas.width, canvas.height, pixels, options );
 
 					current ++;
@@ -111,7 +115,7 @@
 
 				// Generate
 
-				const buffer = await generateGIF( canvas, render, 100 );
+				const buffer = await generateGIF( canvas, render, 4, 30 );
 
 				button.style.display = '';
 				progress.style.display = 'none';
